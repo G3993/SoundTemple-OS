@@ -8,7 +8,7 @@ export interface AudioAnalysisData {
 
 export class AudioService {
   private audioContext: AudioContext | null = null;
-  private sourceNode: MediaElementAudioSourceNode | null = null;
+  private sourceNode: MediaElementAudioSourceNode | MediaStreamAudioSourceNode | null = null;
   private analyser: AnalyserNode | null = null;
   private bassFilter: BiquadFilterNode | null = null;
   private midFilter: BiquadFilterNode | null = null;
@@ -16,6 +16,7 @@ export class AudioService {
   private vibroacousticFilter: BiquadFilterNode | null = null;
   private gainNode: GainNode | null = null;
   private audioElement: HTMLAudioElement | null = null;
+  private systemAudioStream: MediaStream | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -129,10 +130,104 @@ export class AudioService {
     }
   }
 
+  async initializeSystemAudio() {
+    if (!this.audioContext) return;
+
+    // Disconnect existing source if any
+    if (this.sourceNode) {
+      this.sourceNode.disconnect();
+    }
+
+    try {
+      // Request system audio capture
+      // Note: This captures the user's microphone by default
+      // For true system audio, you'd need a virtual audio device or browser extension
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        }
+      });
+
+      this.systemAudioStream = stream;
+
+      // Create source from stream
+      this.sourceNode = this.audioContext.createMediaStreamSource(stream);
+
+      // Create analyzer and filters if they don't exist
+      if (!this.analyser) {
+        this.analyser = this.audioContext.createAnalyser();
+        this.analyser.fftSize = 2048;
+      }
+
+      if (!this.gainNode) {
+        this.gainNode = this.audioContext.createGain();
+      }
+
+      if (!this.bassFilter) {
+        this.bassFilter = this.audioContext.createBiquadFilter();
+        this.bassFilter.type = 'lowshelf';
+        this.bassFilter.frequency.value = 200;
+        this.bassFilter.gain.value = 0;
+      }
+
+      if (!this.midFilter) {
+        this.midFilter = this.audioContext.createBiquadFilter();
+        this.midFilter.type = 'peaking';
+        this.midFilter.frequency.value = 1000;
+        this.midFilter.Q.value = 1;
+        this.midFilter.gain.value = 0;
+      }
+
+      if (!this.trebleFilter) {
+        this.trebleFilter = this.audioContext.createBiquadFilter();
+        this.trebleFilter.type = 'highshelf';
+        this.trebleFilter.frequency.value = 3000;
+        this.trebleFilter.gain.value = 0;
+      }
+
+      if (!this.vibroacousticFilter) {
+        this.vibroacousticFilter = this.audioContext.createBiquadFilter();
+        this.vibroacousticFilter.type = 'peaking';
+        this.vibroacousticFilter.frequency.value = 23.5;
+        this.vibroacousticFilter.Q.value = 2;
+        this.vibroacousticFilter.gain.value = 12;
+      }
+
+      // Connect nodes
+      this.sourceNode
+        .connect(this.vibroacousticFilter)
+        .connect(this.bassFilter)
+        .connect(this.midFilter)
+        .connect(this.trebleFilter)
+        .connect(this.gainNode)
+        .connect(this.analyser)
+        .connect(this.audioContext.destination);
+
+      return true;
+    } catch (error) {
+      console.error('Failed to initialize system audio:', error);
+      return false;
+    }
+  }
+
+  stopSystemAudio() {
+    if (this.systemAudioStream) {
+      this.systemAudioStream.getTracks().forEach(track => track.stop());
+      this.systemAudioStream = null;
+    }
+    if (this.sourceNode) {
+      this.sourceNode.disconnect();
+      this.sourceNode = null;
+    }
+  }
+
   disconnect() {
     if (this.sourceNode) {
       this.sourceNode.disconnect();
     }
+    this.stopSystemAudio();
   }
 }
 

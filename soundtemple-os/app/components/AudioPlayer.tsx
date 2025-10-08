@@ -21,6 +21,8 @@ export default function AudioPlayer() {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [audioData, setAudioData] = useState<AudioAnalysisData | null>(null);
   const [vibroacousticEnabled, setVibroacousticEnabled] = useState(true);
+  const [systemAudioEnabled, setSystemAudioEnabled] = useState(false);
+  const [systemAudioError, setSystemAudioError] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -165,6 +167,28 @@ export default function AudioPlayer() {
     );
   };
 
+  const toggleSystemAudio = async () => {
+    if (systemAudioEnabled) {
+      // Stop system audio
+      audioService.stopSystemAudio();
+      setSystemAudioEnabled(false);
+      setIsPlaying(false);
+      setSystemAudioError(null);
+    } else {
+      // Start system audio
+      setSystemAudioError(null);
+      const success = await audioService.initializeSystemAudio();
+
+      if (success) {
+        setSystemAudioEnabled(true);
+        setIsPlaying(true);
+        audioService.setVibroacousticBoost(vibroacousticEnabled, 12);
+      } else {
+        setSystemAudioError('Failed to capture system audio. Grant microphone permission and try again.');
+      }
+    }
+  };
+
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
@@ -192,6 +216,33 @@ export default function AudioPlayer() {
         </svg>
         UPLOAD AUDIO FILES
       </button>
+
+      {/* System Audio Toggle */}
+      <div className="mb-4 p-3 bg-[#1a1a1a] rounded-xl">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">System Audio Capture</span>
+          </div>
+          <button
+            onClick={toggleSystemAudio}
+            className={`w-12 h-6 rounded-full transition-colors ${
+              systemAudioEnabled ? 'bg-green-500' : 'bg-gray-600'
+            }`}
+          >
+            <div
+              className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                systemAudioEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+        <p className="text-xs text-gray-400">
+          Route any audio playing on your computer through the vibroacoustic processor
+        </p>
+        {systemAudioError && (
+          <p className="text-xs text-red-400 mt-2">{systemAudioError}</p>
+        )}
+      </div>
 
       {/* Vibroacoustic Toggle */}
       <div className="mb-4 flex items-center justify-between p-3 bg-[#1a1a1a] rounded-xl">
