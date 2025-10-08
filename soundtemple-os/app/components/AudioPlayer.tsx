@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { audioService, AudioAnalysisData } from '../services/audioService';
+import { defaultPlaylist, playlistName, getTotalDuration, formatDuration } from '../data/defaultPlaylist';
 
 interface Track {
   id: string;
@@ -31,6 +32,24 @@ export default function AudioPlayer({ vibroacousticEnabled, setVibroacousticEnab
   const audioRef = useRef<HTMLAudioElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const animationFrameRef = useRef<number>();
+
+  // Load default playlist on mount
+  useEffect(() => {
+    const defaultTracks: Track[] = defaultPlaylist.map(track => ({
+      id: track.id,
+      name: track.name,
+      artist: track.artist,
+      file: null,
+      url: track.url,
+    }));
+
+    setPlaylist(defaultTracks);
+
+    // Auto-load first track
+    if (defaultTracks.length > 0) {
+      loadTrack(defaultTracks[0]);
+    }
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -428,7 +447,14 @@ export default function AudioPlayer({ vibroacousticEnabled, setVibroacousticEnab
       {/* Playlist */}
       {playlist.length > 0 && (
         <div className="mt-6 pt-6 border-t border-white/10">
-          <h3 className="text-sm font-medium mb-3 text-gray-400">PLAYLIST ({playlist.length})</h3>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-sm font-medium text-white">{playlistName}</h3>
+              <p className="text-xs text-gray-500">
+                {playlist.length} tracks · {formatDuration(getTotalDuration())}
+              </p>
+            </div>
+          </div>
           <div className="space-y-2 max-h-40 overflow-y-auto">
             {playlist.map((track) => (
               <button
