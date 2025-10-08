@@ -6,6 +6,8 @@ import AudioPlayer from './components/AudioPlayer';
 import VibrationControls from './components/VibrationControls';
 
 export default function Home() {
+  const [vibroacousticEnabled, setVibroacousticEnabled] = useState(true);
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-4 md:p-8">
       {/* Header */}
@@ -31,8 +33,14 @@ export default function Home() {
       {/* Main Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <ConnectedDevices />
-        <AudioPlayer />
-        <VibrationControls />
+        <AudioPlayer
+          vibroacousticEnabled={vibroacousticEnabled}
+          setVibroacousticEnabled={setVibroacousticEnabled}
+        />
+        <VibrationControls
+          vibroacousticEnabled={vibroacousticEnabled}
+          setVibroacousticEnabled={setVibroacousticEnabled}
+        />
       </div>
     </div>
   );

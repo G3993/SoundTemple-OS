@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { audioService } from '../services/audioService';
 
 type VibrationMode = 'balanced' | 'dynamic' | 'custom';
 
@@ -9,7 +10,12 @@ interface VibrationZone {
   value: number;
 }
 
-export default function VibrationControls() {
+interface VibrationControlsProps {
+  vibroacousticEnabled: boolean;
+  setVibroacousticEnabled: (enabled: boolean) => void;
+}
+
+export default function VibrationControls({ vibroacousticEnabled, setVibroacousticEnabled }: VibrationControlsProps) {
   const [mode, setMode] = useState<VibrationMode>('balanced');
   const [zones, setZones] = useState<VibrationZone[]>([
     { name: 'HEAD', value: 50 },
@@ -54,6 +60,34 @@ export default function VibrationControls() {
   return (
     <div className="bg-black rounded-3xl p-6">
       <h2 className="text-xl font-semibold mb-6">Vibration Controls</h2>
+
+      {/* Vibroacoustic Boost Toggle */}
+      <div className="mb-6 p-4 bg-[#1a1a1a] rounded-xl">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Vibroacoustic Boost</span>
+          </div>
+          <button
+            onClick={() => {
+              const newState = !vibroacousticEnabled;
+              setVibroacousticEnabled(newState);
+              audioService.setVibroacousticBoost(newState, 12);
+            }}
+            className={`w-12 h-6 rounded-full transition-colors ${
+              vibroacousticEnabled ? 'bg-white' : 'bg-gray-600'
+            }`}
+          >
+            <div
+              className={`w-5 h-5 rounded-full bg-black transition-transform ${
+                vibroacousticEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+        <p className="text-xs text-gray-400">
+          20-27Hz frequency boost for optimal haptic feedback
+        </p>
+      </div>
 
       {/* Mode Selection */}
       <div className="mb-8">

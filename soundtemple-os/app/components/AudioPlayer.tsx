@@ -11,7 +11,12 @@ interface Track {
   url: string | null;
 }
 
-export default function AudioPlayer() {
+interface AudioPlayerProps {
+  vibroacousticEnabled: boolean;
+  setVibroacousticEnabled: (enabled: boolean) => void;
+}
+
+export default function AudioPlayer({ vibroacousticEnabled, setVibroacousticEnabled }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -20,7 +25,6 @@ export default function AudioPlayer() {
   const [playlist, setPlaylist] = useState<Track[]>([]);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [audioData, setAudioData] = useState<AudioAnalysisData | null>(null);
-  const [vibroacousticEnabled, setVibroacousticEnabled] = useState(true);
   const [systemAudioEnabled, setSystemAudioEnabled] = useState(false);
   const [systemAudioError, setSystemAudioError] = useState<string | null>(null);
 
@@ -243,29 +247,6 @@ export default function AudioPlayer() {
         {systemAudioError && (
           <p className="text-xs text-red-400 mt-2">{systemAudioError}</p>
         )}
-      </div>
-
-      {/* Vibroacoustic Toggle */}
-      <div className="mb-4 flex items-center justify-between p-3 bg-[#1a1a1a] rounded-xl">
-        <div className="flex items-center gap-2">
-          <span className="text-sm">Vibroacoustic Boost (20-27Hz)</span>
-        </div>
-        <button
-          onClick={() => {
-            const newState = !vibroacousticEnabled;
-            setVibroacousticEnabled(newState);
-            audioService.setVibroacousticBoost(newState, 12);
-          }}
-          className={`w-12 h-6 rounded-full transition-colors ${
-            vibroacousticEnabled ? 'bg-white' : 'bg-gray-600'
-          }`}
-        >
-          <div
-            className={`w-5 h-5 rounded-full bg-black transition-transform ${
-              vibroacousticEnabled ? 'translate-x-6' : 'translate-x-1'
-            }`}
-          />
-        </button>
       </div>
 
       {/* Output Selection Dropdown */}
