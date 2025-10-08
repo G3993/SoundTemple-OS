@@ -57,14 +57,15 @@ export default function AudioPlayer() {
   }, [currentTrack]);
 
   useEffect(() => {
-    if (isPlaying) {
+    if (isPlaying || systemAudioEnabled) {
       updateVisualization();
     } else {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
+      setAudioData(null); // Clear visualization when stopped
     }
-  }, [isPlaying]);
+  }, [isPlaying, systemAudioEnabled]);
 
   const updateVisualization = () => {
     const data = audioService.getAnalysisData();
@@ -313,6 +314,16 @@ export default function AudioPlayer() {
       <div className="relative mb-8">
         <div className="flex items-center justify-center h-64">
           <div className="relative w-48 h-48">
+            {/* Center indicator for system audio */}
+            {systemAudioEnabled && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-8 h-8 bg-green-500 rounded-full animate-pulse"
+                     style={{
+                       opacity: audioData ? 0.5 + (audioData.bass * 0.5) : 0.5
+                     }}
+                />
+              </div>
+            )}
             {/* Circular dots visualization */}
             <div className="absolute inset-0">
               {[...Array(12)].map((_, ring) => {
@@ -327,21 +338,36 @@ export default function AudioPlayer() {
 
                       // Use audio data if available
                       let scale = 1;
-                      if (isPlaying && audioData) {
-                        const frequencyIndex = Math.floor((i / dotsInRing) * audioData.frequencyData.length);
-                        const intensity = audioData.frequencyData[frequencyIndex] / 255;
-                        scale = 0.5 + intensity * 1.5;
+                      let opacity = 0.6;
+
+                      const isActive = isPlaying || systemAudioEnabled;
+
+                      if (isActive && audioData) {
+                        // Map dots to different frequency ranges for more variety
+                        const frequencyIndex = Math.floor((ring / 12) * audioData.frequencyData.length);
+                        const ringIntensity = audioData.frequencyData[frequencyIndex] / 255;
+
+                        // Add rotation-based variation
+                        const angleIndex = Math.floor((i / dotsInRing) * audioData.frequencyData.length);
+                        const angleIntensity = audioData.frequencyData[angleIndex] / 255;
+
+                        // Combine both for more dynamic effect
+                        const combinedIntensity = (ringIntensity + angleIntensity) / 2;
+
+                        scale = 0.3 + combinedIntensity * 2;
+                        opacity = 0.6 + combinedIntensity * 0.4;
                       }
 
                       return (
                         <div
                           key={i}
-                          className="absolute w-2 h-2 bg-white rounded-full transition-transform duration-75"
+                          className="absolute w-2 h-2 bg-white rounded-full"
                           style={{
                             left: `${x}px`,
                             top: `${y}px`,
                             transform: `translate(-50%, -50%) scale(${scale})`,
-                            opacity: isPlaying ? 0.8 + (scale - 0.5) * 0.4 : 0.6,
+                            opacity: opacity,
+                            transition: 'transform 0.05s ease-out, opacity 0.05s ease-out',
                           }}
                         />
                       );
