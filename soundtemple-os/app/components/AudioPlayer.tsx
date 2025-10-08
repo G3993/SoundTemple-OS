@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { audioService, AudioAnalysisData } from '../services/audioService';
+import { audioService } from '../services/audioService';
 import { defaultPlaylist, playlistName, getTotalDuration, formatDuration } from '../data/defaultPlaylist';
 
 interface Track {
@@ -25,13 +25,11 @@ export default function AudioPlayer({ vibroacousticEnabled, setVibroacousticEnab
   const [selectedOutputs, setSelectedOutputs] = useState<string[]>(['beds', 'speakers']);
   const [playlist, setPlaylist] = useState<Track[]>([]);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
-  const [audioData, setAudioData] = useState<AudioAnalysisData | null>(null);
   const [systemAudioEnabled, setSystemAudioEnabled] = useState(false);
   const [systemAudioError, setSystemAudioError] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const animationFrameRef = useRef<number>();
 
   // Load default playlist on mount
   useEffect(() => {
@@ -78,25 +76,6 @@ export default function AudioPlayer({ vibroacousticEnabled, setVibroacousticEnab
       audio.removeEventListener('ended', handleEnded);
     };
   }, [currentTrack]);
-
-  useEffect(() => {
-    if (isPlaying || systemAudioEnabled) {
-      updateVisualization();
-    } else {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      setAudioData(null); // Clear visualization when stopped
-    }
-  }, [isPlaying, systemAudioEnabled]);
-
-  const updateVisualization = () => {
-    const data = audioService.getAnalysisData();
-    if (data) {
-      setAudioData(data);
-    }
-    animationFrameRef.current = requestAnimationFrame(updateVisualization);
-  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -230,44 +209,6 @@ export default function AudioPlayer({ vibroacousticEnabled, setVibroacousticEnab
         className="hidden"
       />
 
-      {/* File Upload Button */}
-      <button
-        onClick={() => fileInputRef.current?.click()}
-        className="w-full mb-4 py-3 px-6 rounded-full bg-white/10 hover:bg-white/20 transition-all flex items-center justify-center gap-2 text-sm font-medium"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-        </svg>
-        UPLOAD AUDIO FILES
-      </button>
-
-      {/* System Audio Toggle */}
-      <div className="mb-4 p-3 bg-[#1a1a1a] rounded-xl">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">System Audio Capture</span>
-          </div>
-          <button
-            onClick={toggleSystemAudio}
-            className={`w-12 h-6 rounded-full transition-colors ${
-              systemAudioEnabled ? 'bg-green-500' : 'bg-gray-600'
-            }`}
-          >
-            <div
-              className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                systemAudioEnabled ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
-        <p className="text-xs text-gray-400">
-          Route any audio playing on your computer through the vibroacoustic processor
-        </p>
-        {systemAudioError && (
-          <p className="text-xs text-red-400 mt-2">{systemAudioError}</p>
-        )}
-      </div>
-
       {/* Output Selection Dropdown */}
       <div className="relative mb-8">
         <button
@@ -308,76 +249,6 @@ export default function AudioPlayer({ vibroacousticEnabled, setVibroacousticEnab
             ))}
           </div>
         )}
-      </div>
-
-      {/* Visualizer */}
-      <div className="relative mb-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="relative w-48 h-48">
-            {/* Center indicator for system audio */}
-            {systemAudioEnabled && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-8 h-8 bg-green-500 rounded-full animate-pulse"
-                     style={{
-                       opacity: audioData ? 0.5 + (audioData.bass * 0.5) : 0.5
-                     }}
-                />
-              </div>
-            )}
-            {/* Circular dots visualization */}
-            <div className="absolute inset-0">
-              {[...Array(12)].map((_, ring) => {
-                const radius = 20 + ring * 10;
-                const dotsInRing = 8 + ring * 4;
-                return (
-                  <div key={ring}>
-                    {[...Array(dotsInRing)].map((_, i) => {
-                      const angle = (i / dotsInRing) * 2 * Math.PI;
-                      const x = 96 + radius * Math.cos(angle);
-                      const y = 96 + radius * Math.sin(angle);
-
-                      // Use audio data if available
-                      let scale = 1;
-                      let opacity = 0.6;
-
-                      const isActive = isPlaying || systemAudioEnabled;
-
-                      if (isActive && audioData) {
-                        // Map dots to different frequency ranges for more variety
-                        const frequencyIndex = Math.floor((ring / 12) * audioData.frequencyData.length);
-                        const ringIntensity = audioData.frequencyData[frequencyIndex] / 255;
-
-                        // Add rotation-based variation
-                        const angleIndex = Math.floor((i / dotsInRing) * audioData.frequencyData.length);
-                        const angleIntensity = audioData.frequencyData[angleIndex] / 255;
-
-                        // Combine both for more dynamic effect
-                        const combinedIntensity = (ringIntensity + angleIntensity) / 2;
-
-                        scale = 0.3 + combinedIntensity * 2;
-                        opacity = 0.6 + combinedIntensity * 0.4;
-                      }
-
-                      return (
-                        <div
-                          key={i}
-                          className="absolute w-2 h-2 bg-white rounded-full"
-                          style={{
-                            left: `${x}px`,
-                            top: `${y}px`,
-                            transform: `translate(-50%, -50%) scale(${scale})`,
-                            opacity: opacity,
-                            transition: 'transform 0.05s ease-out, opacity 0.05s ease-out',
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Track Info */}
@@ -471,6 +342,44 @@ export default function AudioPlayer({ vibroacousticEnabled, setVibroacousticEnab
           </div>
         </div>
       )}
+
+      {/* File Upload Button */}
+      <button
+        onClick={() => fileInputRef.current?.click()}
+        className="w-full mt-6 py-3 px-6 rounded-full bg-white/10 hover:bg-white/20 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+        UPLOAD AUDIO FILES
+      </button>
+
+      {/* System Audio Toggle */}
+      <div className="mt-4 p-3 bg-[#1a1a1a] rounded-xl">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">System Audio Capture</span>
+          </div>
+          <button
+            onClick={toggleSystemAudio}
+            className={`w-12 h-6 rounded-full transition-colors ${
+              systemAudioEnabled ? 'bg-green-500' : 'bg-gray-600'
+            }`}
+          >
+            <div
+              className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                systemAudioEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+        <p className="text-xs text-gray-400">
+          Route any audio playing on your computer through the vibroacoustic processor
+        </p>
+        {systemAudioError && (
+          <p className="text-xs text-red-400 mt-2">{systemAudioError}</p>
+        )}
+      </div>
     </div>
   );
 }
